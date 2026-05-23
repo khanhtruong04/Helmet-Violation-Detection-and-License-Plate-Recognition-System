@@ -1,0 +1,19 @@
+# Core
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0
+
+# Computer Vision
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# OCR
+easyocr>=1.7.0
+# tensorflow>=2.12.0  # Optional: Chỉ cần cho CNN OCR method
+
+# Web Interface
+gradio>=4.0.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.65.0

@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Model weights
+*.pt
+*.pth
+*.onnx
+
+# Dataset
+data/
+datasets/
+
+# Logs
+*.log
