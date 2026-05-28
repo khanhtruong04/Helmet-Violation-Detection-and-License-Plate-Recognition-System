@@ -14,7 +14,6 @@ Dự án tích hợp **YOLOv8** và **Faster R-CNN** để phát hiện mũ bả
 - [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
 - [Hướng Dẫn Cài Đặt](#hướng-dẫn-cài-đặt)
 - [Hướng Dẫn Chạy](#hướng-dẫn-chạy)
-- [Quy Ước Màu Sắc](#quy-ước-màu-sắc)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -207,15 +206,6 @@ Mở trình duyệt: **http://localhost:7860/**
 
 ---
 
-## Quy Ước Màu Sắc
-
-| Đối Tượng | Màu | Mã BGR | Label |
-|-----------|-----|-------|-------|
-| Người đội mũ | Xanh lá | `(0, 255, 0)` | Không |
-| Không đội mũ | Đỏ | `(0, 0, 255)` | Không |
-| Xe máy | Xanh dương | `(219, 152, 52)` | Không |
-| Vị trí biển số | Vàng | `(0, 255, 255)` | Không |
-| **Text OCR** | **Chữ đen** | **`(0, 0, 0)`** | **Nền vàng** |
 
 ---
 
@@ -251,13 +241,5 @@ for f in os.listdir(weight_dir):
 
 ---
 
-## License
 
-Dự án phát triển cho mục đích nghiên cứu và giáo dục.
-
----
-
-## Tác Giả
-
-Dự án ứng dụng AI trong an toàn giao thông đô thị.
 
