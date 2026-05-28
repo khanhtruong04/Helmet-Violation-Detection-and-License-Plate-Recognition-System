@@ -14,8 +14,6 @@ Dự án tích hợp **YOLOv8** và **Faster R-CNN** để phát hiện mũ bả
 - [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
 - [Hướng Dẫn Cài Đặt](#hướng-dẫn-cài-đặt)
 - [Hướng Dẫn Chạy](#hướng-dẫn-chạy)
-- [Troubleshooting](#troubleshooting)
-
 ---
 
 ## Tính Năng Nổi Bật
@@ -206,38 +204,8 @@ Mở trình duyệt: **http://localhost:7860/**
 
 ---
 
-
----
-
-## Troubleshooting
-
-### CUDA / GPU không nhận
-```bash
-python -c "import torch; print(torch.cuda.is_available())"
-# Chạy trên CPU: thêm device = 'cpu' trong code
-```
-
-### Lỗi load file `.h5`
-```bash
-pip install tensorflow==2.12.0
-```
-
-### EasyOCR lần đầu chạy chậm
-EasyOCR tự động download model (~100MB) lần đầu. Cần kết nối internet.
-
-### Port 7860 bị chiếm
-```bash
-netstat -an | findstr 7860
-# Đổi port trong main.py: demo.launch(server_port=7861)
-```
-
-### Model không load được
-```python
-import os
-weight_dir = r"C:\Python\project\weights"
-for f in os.listdir(weight_dir):
-    print(f)
-```
+Tải các file trọng số mô hình:
+https://drive.google.com/drive/folders/1J3O6DSZ58M5O2H5fAJMGUyTb8zbAFXCd?usp=sharing
 
 ---
 
