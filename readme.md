@@ -150,19 +150,6 @@ pip install -r requirements.txt
 
 **`requirements.txt`:**
 
-```txt
-torch>=2.0.0
-torchvision>=0.15.0
-ultralytics>=8.0.0
-opencv-python>=4.8.0
-Pillow>=10.0.0
-easyocr>=1.7.0
-tensorflow>=2.12.0
-gradio>=4.0.0
-numpy>=1.24.0
-tqdm>=4.65.0
-```
-
 ### Bước 5: Kiểm Tra File Trọng Số
 
 Đảm bảo các file sau tồn tại trong `weights/`:
