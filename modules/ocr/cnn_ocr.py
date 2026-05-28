@@ -25,13 +25,13 @@ class CNNCharacterClassifier:
         try:
             weight_path = get_weight_path('character_classifier.h5')
             self.model = keras.models.load_model(weight_path)
-            print(f"✓ CNN Classifier loaded from {weight_path}")
+            print(f"[OK] CNN Classifier loaded from {weight_path}")
             
-            # Định nghĩa danh sách ký tự biển số Việt Nam
-            self.char_list = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+            # Định nghĩa danh sách ký tự biển số Việt Nam (include dấu '-')
+            self.char_list = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-'
         except Exception as e:
-            print(f" Lỗi load CNN Classifier: {e}")
-            raise
+            print(f"[WARN] CNN Classifier load failed: {e}")
+            self.model = None  # Mark as failed for fallback
     
     def preprocess_plate(self, plate_crop):
         """
@@ -115,6 +115,9 @@ class CNNCharacterClassifier:
         Returns:
             chuỗi biển số
         """
+        if self.model is None:
+            return ""
+        
         try:
             # Tiền xử lý
             processed = self.preprocess_plate(plate_crop)
@@ -132,7 +135,7 @@ class CNNCharacterClassifier:
                 plate_text += char
             
             # Chuẩn hóa
-            return normalize_plate_text(plate_text)
+            return normalize_plate_text(plate_text) if plate_text else "???"
         except Exception as e:
-            print(f"❌ Lỗi recognize CNN: {e}")
+            print(f"[WARN] CNN recognize error: {e}")
             return ""

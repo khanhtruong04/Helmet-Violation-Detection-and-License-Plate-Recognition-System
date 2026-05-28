@@ -26,10 +26,10 @@ class EasyOCRModule:
         """Khởi tạo reader EasyOCR"""
         try:
             self.reader = easyocr.Reader(self.languages)
-            print(f"✓ EasyOCR Reader initialized with languages: {self.languages}")
+            print(f"[OK] EasyOCR Reader initialized with languages: {self.languages}")
         except Exception as e:
-            print(f"❌ Lỗi khởi tạo EasyOCR: {e}")
-            raise
+            print(f"[ERROR] EasyOCR init failed: {e}")
+            self.reader = None  # Mark as failed
     
     def preprocess_plate(self, plate_crop):
         """
@@ -82,7 +82,7 @@ class EasyOCRModule:
                     plate_text += text
             
             # Chuẩn hóa
-            return normalize_plate_text(plate_text)
+            return normalize_plate_text(plate_text) if plate_text else "???"
         except Exception as e:
-            print(f"❌ Lỗi recognize EasyOCR: {e}")
+            print(f"[WARN] EasyOCR recognize error: {e}")
             return ""

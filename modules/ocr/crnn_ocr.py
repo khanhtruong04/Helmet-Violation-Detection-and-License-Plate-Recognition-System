@@ -81,7 +81,10 @@ class CRNNOCRModule:
         """Khởi tạo CRNN module"""
         self.device = device
         self.model = None
+        # MATCH COLAB TRAINING: 36 chars + blank = 37 classes
         self.char_list = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        # Create idx2char mapping: idx 0 = blank, idx 1-36 = chars
+        self.idx2char = {i + 1: c for i, c in enumerate(self.char_list)}
         self._load_model()
     
     def _load_model(self):
@@ -91,64 +94,124 @@ class CRNNOCRModule:
             weight_path = get_weight_path('crnn_ocr_best.pth')
             checkpoint = torch.load(weight_path, map_location=self.device)
             
-            # Handle wrapped checkpoint format
+            # Load model state dict
             if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                checkpoint = checkpoint['model_state_dict']
+                self.model.load_state_dict(checkpoint['model_state_dict'], strict=True)
+                # Load idx2char từ checkpoint (IMPORTANT!)
+                if 'idx2char' in checkpoint:
+                    self.idx2char = checkpoint['idx2char']
+                    print(f"[OK] Loaded idx2char from checkpoint: {len(self.idx2char)} classes")
+            else:
+                self.model.load_state_dict(checkpoint, strict=True)
             
-            self.model.load_state_dict(checkpoint, strict=True)
             self.model.to(self.device)
             self.model.eval()
-            print(f"✓ CRNN model loaded from {weight_path}")
+            print(f"[OK] CRNN model loaded from {weight_path}")
         except Exception as e:
-            print(f"⚠ Lỗi load CRNN model: {e}")
+            print(f"[ERROR] Load CRNN model failed: {e}")
             print(f"  Fallback: CRNN disabled, use EasyOCR instead")
             self.model = None  # Mark as failed
     
     def preprocess_plate(self, plate_crop):
         """
-        Tiền xử lý ảnh biển số
+        Tiền xử lý ảnh biển số - Match với Colab training
         
         Args:
-            plate_crop: ảnh biển số đã crop
+            plate_crop: ảnh biển số đã crop (BGR format)
         
         Returns:
-            tensor đã xử lý
+            tensor đã xử lý (normalized to [-1, 1])
         """
-        # Resize to model input size
-        imgH = 32
-        h, w = plate_crop.shape[:2]
-        imgW = int(w * imgH / h)
+        # Convert BGR → RGB
+        img_rgb = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2RGB)
         
-        resized = cv2.resize(plate_crop, (imgW, imgH))
+        h, w = img_rgb.shape[:2]
         
-        # Normalize to [0, 1]
-        img_tensor = torch.from_numpy(resized).permute(2, 0, 1).float() / 255.0
-        img_tensor = img_tensor.unsqueeze(0).to(self.device)
+        # Nếu tỷ lệ cao > 0.6 → split thành 2 nửa (top/bottom) rồi ghép lại
+        if h / w > 0.6:
+            mid = h // 2
+            top, bot = img_rgb[:mid], img_rgb[mid:]
+            th = max(top.shape[0], bot.shape[0])
+            top = cv2.resize(top, (int(top.shape[1] * th / top.shape[0]), th))
+            bot = cv2.resize(bot, (int(bot.shape[1] * th / bot.shape[0]), th))
+            img_rgb = np.hstack([top, bot])
+        
+        # Convert RGB → Grayscale
+        gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+        
+        # CLAHE: Contrast Limited Adaptive Histogram Equalization
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
+        gray = clahe.apply(gray)
+        
+        # Denoising
+        gray = cv2.fastNlMeansDenoising(gray, h=10, templateWindowSize=7, searchWindowSize=21)
+        
+        # Adaptive Threshold
+        binary = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY, 15, 8
+        )
+        
+        # Resize to model input (32, 128)
+        imgH, imgW = 32, 128
+        h, w = binary.shape[:2]
+        new_w = int(w * imgH / h)
+        
+        if new_w > imgW:
+            binary = cv2.resize(binary, (imgW, imgH))
+        else:
+            binary = cv2.resize(binary, (new_w, imgH))
+            # Padding với trắng (255)
+            binary = cv2.copyMakeBorder(
+                binary, 0, 0, 0, imgW - new_w,
+                cv2.BORDER_CONSTANT, value=255
+            )
+        
+        # Stack 3 channels (binary → 3 channel)
+        binary_3ch = np.stack([binary, binary, binary], axis=-1)
+        
+        # Convert to tensor: [0, 1]
+        img_tensor = torch.from_numpy(binary_3ch).float() / 255.0
+        
+        # Normalize to [-1, 1] (MATCH TRAINING)
+        img_tensor = (img_tensor - 0.5) / 0.5
+        
+        # Add batch dimension
+        img_tensor = img_tensor.permute(2, 0, 1).unsqueeze(0).to(self.device)
         
         return img_tensor
     
     def decode_prediction(self, output):
         """
-        Decode CTC output to text
+        Decode CTC output to text - MATCH COLAB EXACTLY
         
         Args:
-            output: model output (batch_size, seq_len, num_class)
+            output: model output (seq_len, batch_size, num_class)
         
         Returns:
             text
         """
-        output = output.cpu().data.numpy()
-        argmax_indices = np.argmax(output[0], axis=1)
+        # Apply log softmax and argmax (same as Colab)
+        import torch.nn.functional as F
+        log_probs = F.log_softmax(output, dim=-1)
+        preds = log_probs.argmax(dim=-1).squeeze(1).cpu().numpy()  # (seq_len,)
         
-        text = ""
-        last_idx = 0
-        for idx in argmax_indices:
-            if idx != 0 and idx != last_idx:  # 0 is blank
-                if idx < len(self.char_list):
-                    text += self.char_list[idx]
-            last_idx = idx
+        # Decode: CTC logic from Colab
+        # Skip blank (0) and consecutive duplicates
+        chars = []
+        prev = None
+        BLANK_IDX = 0
         
-        return text
+        for p in preds:
+            p_int = int(p)
+            # If not blank AND not same as previous → add char
+            if p_int != prev and p_int != BLANK_IDX:
+                char = self.idx2char.get(p_int, '')
+                if char:
+                    chars.append(char)
+            prev = p_int
+        
+        return ''.join(chars) if chars else '???'
     
     def recognize(self, plate_crop):
         """
